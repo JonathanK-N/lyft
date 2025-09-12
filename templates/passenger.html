@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Passager : {{ passenger.name }}</h2>
+<p><strong>Adresse :</strong> {{ passenger.address }}</p>
+
+{% if driver %}
+  <h3>Conducteur attribué</h3>
+  <p>{{ driver.name }} – {{ driver.address }} ({{ distance }} km)</p>
+{% else %}
+  <p>Aucun conducteur disponible pour l’instant.</p>
+{% endif %}
+{% endblock %}
