@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Passager – Church Lyft{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="row g-4">
+    <div class="col-lg-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Demander une navette</h2>
+          <div class="mb-3">
+            <label class="form-label">Point de départ</label>
+            <div class="input-group">
+              <input id="pickup" class="form-control" placeholder="Ma position ou adresse" />
+              <button class="btn btn-outline-secondary" id="btnPickupHere"><i class="bi bi-geo"></i></button>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Destination</label>
+            <input id="dropoff" class="form-control" placeholder="Église ICC Sherbrooke ou autre" />
+          </div>
+          <button class="btn btn-primary w-100" id="btnRequest"><i class="bi bi-send"></i> Demander</button>
+          <div class="form-text mt-2">Un chauffeur proche vous sera proposé.</div>
+        </div>
+      </div>
+      <div class="alert alert-info mt-3" role="alert">
+        <i class="bi bi-info-circle me-1"></i> Conseil: autorisez la géolocalisation pour une meilleure précision.
+      </div>
+    </div>
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="ratio ratio-4x3">
+          <div id="map-passenger"></div>
+        </div>
+        <div class="card-body d-flex gap-2 flex-wrap">
+          <button class="btn btn-outline-primary" id="btnMyPosition"><i class="bi bi-crosshair"></i> Ma position</button>
+          <button class="btn btn-outline-secondary" id="btnClear"><i class="bi bi-eraser"></i> Effacer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const map = AppMap.create('map-passenger', { center: [45.4042, -71.8929], zoom: 13 });
+  AppMap.locateAndCenter().catch(() => {});
+
+  document.getElementById('btnPickupHere').addEventListener('click', async () => {
+    const pos = await AppMap.locate();
+    if (pos) {
+      AppMap.addOrMoveMarker('pickup', pos, { label: 'Départ' });
+      document.getElementById('pickup').value = `${pos[0].toFixed(5)}, ${pos[1].toFixed(5)}`;
+    }
+  });
+
+  document.getElementById('btnMyPosition').addEventListener('click', AppMap.locateAndCenter);
+  document.getElementById('btnClear').addEventListener('click', () => AppMap.clearRoute());
+
+  document.getElementById('btnRequest').addEventListener('click', () => {
+    (async () => {
+      try {
+        const res = await Auth.fetch('/passenger/request', { method: 'POST' });
+        const data = await Auth.json(res);
+        const ok = res.ok;
+        const msg = ok ? (data.driver ? `Chauffeur proposé: ${data.driver.name} (${(data.distance_km||0).toFixed(1)} km)` : 'Demande envoyée, en attente…') : (data.error || 'Erreur');
+        const el = document.createElement('div');
+        el.className = `toast align-items-center text-bg-${ok?'success':'danger'} border-0 show position-fixed bottom-0 end-0 m-3`;
+        el.innerHTML = `<div class=\"d-flex\"><div class=\"toast-body\">${msg}</div><button type=\"button\" class=\"btn-close btn-close-white me-2 m-auto\" data-bs-dismiss=\"toast\"></button></div>`;
+        document.body.appendChild(el);
+        setTimeout(()=>el.remove(), 5000);
+      } catch (e) {
+        const el = document.createElement('div');
+        el.className = 'toast align-items-center text-bg-danger border-0 show position-fixed bottom-0 end-0 m-3';
+        el.innerHTML = `<div class=\"d-flex\"><div class=\"toast-body\">${e.message||'Erreur'}</div><button type=\"button\" class=\"btn-close btn-close-white me-2 m-auto\" data-bs-dismiss=\"toast\"></button></div>`;
+        document.body.appendChild(el);
+        setTimeout(()=>el.remove(), 5000);
+      }
+    })();
+  });
+</script>
+{% endblock %}

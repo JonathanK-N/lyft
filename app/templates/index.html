@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% block title %}Accueil – Church Lyft{% endblock %}
+{% block content %}
+  <section class="py-4 py-lg-5 border-bottom bg-white">
+    <div class="container">
+      <div class="row align-items-center gy-4">
+        <div class="col-lg-6">
+          <h1 class="display-5 fw-bold mb-3">Transport solidaire pour l'église</h1>
+          <p class="lead text-secondary mb-4">Organisez des trajets entre passagers et chauffeurs bénévoles d'Impact Centre Chrétien Sherbrooke. Simple, rapide, et pensé pour le dimanche.</p>
+          <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-primary btn-lg" href="/passenger"><i class="bi bi-person-walking me-1"></i> Je suis passager</a>
+            <a class="btn btn-outline-primary btn-lg" href="/driver"><i class="bi bi-steering-wheel me-1"></i> Je suis chauffeur</a>
+          </div>
+          <div class="mt-4">
+            <ul class="nav nav-pills" id="authTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="login-tab" data-bs-toggle="pill" data-bs-target="#login" type="button" role="tab">Connexion</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="register-tab" data-bs-toggle="pill" data-bs-target="#register" type="button" role="tab">Inscription</button>
+              </li>
+            </ul>
+            <div class="tab-content mt-3" id="authTabContent">
+              <div class="tab-pane fade show active" id="login" role="tabpanel">
+                <div class="card shadow-sm" style="max-width: 520px;">
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <label class="form-label">Téléphone</label>
+                      <input id="loginPhone" class="form-control" placeholder="ex: +1 819 555 1234" />
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Mot de passe</label>
+                      <input id="loginPassword" type="password" class="form-control" />
+                    </div>
+                    <button id="btnLogin" class="btn btn-primary">Se connecter</button>
+                    </div>
+                  </div>
+                </div>
+              <div class="tab-pane fade" id="register" role="tabpanel">
+                <div class="card shadow-sm" style="max-width: 520px;">
+                  <div class="card-body">
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <label class="form-label">Nom complet</label>
+                        <input id="regName" class="form-control" />
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Téléphone</label>
+                        <input id="regPhone" class="form-control" />
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">WhatsApp (optionnel)</label>
+                        <input id="regWhats" class="form-control" />
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Email (optionnel)</label>
+                        <input id="regEmail" class="form-control" />
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label">Adresse</label>
+                        <input id="regAddress" class="form-control" />
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Mot de passe</label>
+                        <input id="regPassword" type="password" class="form-control" />
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Confirmation</label>
+                        <input id="regPassword2" type="password" class="form-control" />
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Rôle</label>
+                        <select id="regRole" class="form-select">
+                          <option value="passenger">Passager</option>
+                          <option value="driver">Chauffeur</option>
+                        </select>
+                      </div>
+                      <div class="col-md-6" id="driverOptions" style="display:none;">
+                        <label class="form-label">Capacité</label>
+                        <input id="regCapacity" type="number" min="0" value="3" class="form-control" />
+                      </div>
+                    </div>
+                    <button id="btnRegister" class="btn btn-success mt-3">Créer un compte</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+            <div class="ratio ratio-4x3">
+              <div id="map-home"></div>
+            </div>
+            <div class="card-body small text-secondary">
+              Carte OpenStreetMap centrée sur Sherbrooke.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-5">
+    <div class="container">
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="feature-card p-4 bg-white shadow-sm h-100">
+            <div class="fs-2 text-primary mb-2"><i class="bi bi-geo-alt"></i></div>
+            <h3 class="h5">Localisation en temps réel</h3>
+            <p class="text-secondary">Visualisez passagers et chauffeurs sur la carte pour coordonner les prises en charge.</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="feature-card p-4 bg-white shadow-sm h-100">
+            <div class="fs-2 text-primary mb-2"><i class="bi bi-clock-history"></i></div>
+            <h3 class="h5">Optimisé pour le culte</h3>
+            <p class="text-secondary">Créneaux configurables avant et après les réunions, files d'attente simples.</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="feature-card p-4 bg-white shadow-sm h-100">
+            <div class="fs-2 text-primary mb-2"><i class="bi bi-shield-check"></i></div>
+            <h3 class="h5">Sécurisé et privé</h3>
+            <p class="text-secondary">Seulement les informations nécessaires, respect de la confidentialité des membres.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    // Auth helpers
+    const storeToken = (t) => { try { localStorage.setItem('jwt', t); } catch (_) {} };
+    const toast = (msg, ok=true) => {
+      const el = document.createElement('div');
+      el.className = `toast align-items-center text-bg-${ok?'success':'danger'} border-0 show position-fixed bottom-0 end-0 m-3`;
+      el.innerHTML = `<div class=\"d-flex\"><div class=\"toast-body\">${msg}</div><button type=\"button\" class=\"btn-close btn-close-white me-2 m-auto\" data-bs-dismiss=\"toast\"></button></div>`;
+      document.body.appendChild(el); setTimeout(()=>el.remove(), 3500);
+    };
+
+    document.getElementById('regRole').addEventListener('change', (e) => {
+      document.getElementById('driverOptions').style.display = e.target.value === 'driver' ? '' : 'none';
+    });
+
+    document.getElementById('btnRegister').addEventListener('click', async () => {
+      const body = {
+        name: document.getElementById('regName').value,
+        phone: document.getElementById('regPhone').value,
+        email: document.getElementById('regEmail').value,
+        whatsapp: document.getElementById('regWhats').value,
+        address: document.getElementById('regAddress').value,
+        role: document.getElementById('regRole').value,
+        has_vehicle: document.getElementById('regRole').value === 'driver',
+        capacity: document.getElementById('regRole').value === 'driver' ? Number(document.getElementById('regCapacity').value||0) : 0,
+        password: document.getElementById('regPassword').value,
+      };
+      if (document.getElementById('regPassword').value !== document.getElementById('regPassword2').value) {
+        return toast('Les mots de passe ne correspondent pas', false);
+      }
+      try {
+        const res = await fetch('/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await Auth.json(res);
+        if (!res.ok) throw new Error(data.error || 'Erreur');
+        storeToken(data.token);
+        toast(`Compte créé. Votre ID: ${data.user_id}`);
+      } catch (e) { toast(e.message||'Erreur', false); }
+    });
+
+    document.getElementById('btnLogin').addEventListener('click', async () => {
+      const phone = (document.getElementById('loginPhone').value||'').trim();
+      const password = document.getElementById('loginPassword').value||'';
+      if (!phone || !password) return toast('Entrez téléphone et mot de passe', false);
+      try {
+        const res = await fetch('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, password }) });
+        const data = await Auth.json(res);
+        if (!res.ok) throw new Error(data.error || 'Erreur');
+        storeToken(data.token);
+        window.location.href = `/portal/${data.user_id}`;
+      } catch (e) { toast(e.message||'Erreur', false); }
+    });
+
+    // Home map centered on Sherbrooke
+    const map = AppMap.create('map-home', { center: [45.4042, -71.8929], zoom: 15 });
+    AppMap.addMarker([45.4042, -71.8929], { label: "ICC Sherbrooke" });
+  </script>
+{% endblock %}

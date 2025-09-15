@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}Admin – Church Lyft{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="alert alert-warning" id="adminGuard" style="display:none;">Accès refusé. Connectez-vous avec un compte administrateur.</div>
+
+  <div id="adminContent" style="display:none;">
+    <h1 class="h3 mb-4">Administration</h1>
+
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h2 class="h5 mb-3">Créer un évènement</h2>
+            <div class="mb-2">
+              <label class="form-label">Titre</label>
+              <input id="evTitle" class="form-control" placeholder="Culte du dimanche" />
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Date et heure</label>
+              <input id="evStart" type="datetime-local" class="form-control" />
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Lieu</label>
+              <input id="evLocation" class="form-control" placeholder="Eglise ICC Sherbrooke" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Description</label>
+              <textarea id="evDesc" class="form-control" rows="3"></textarea>
+            </div>
+            <button id="btnCreateEvent" class="btn btn-primary">Créer</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h2 class="h5 mb-3">Évènements</h2>
+            <ul id="eventsList" class="list-group small"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-4">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Membres</h2>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle" id="usersTable">
+            <thead><tr><th>ID</th><th>Nom</th><th>Téléphone</th><th>Rôle</th><th>Capacité</th><th>Disponible</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const guard = document.getElementById('adminGuard');
+  const content = document.getElementById('adminContent');
+
+  async function ensureAdmin(){
+    try {
+      const r = await Auth.fetch('/auth/me');
+      const me = await Auth.json(r);
+      if (!r.ok || me.role !== 'admin') throw new Error('not admin');
+      guard.style.display = 'none'; content.style.display = '';
+      loadUsers(); loadEvents();
+    } catch (_) { guard.style.display = ''; content.style.display = 'none'; }
+  }
+
+  async function loadEvents(){
+    const ul = document.getElementById('eventsList'); ul.innerHTML='';
+    const res = await Auth.fetch('/admin/events');
+    const data = await Auth.json(res);
+    (data||[]).forEach(e => {
+      const li = document.createElement('li');
+      li.className = 'list-group-item d-flex justify-content-between align-items-center';
+      li.innerHTML = `<div><div class=\"fw-semibold\">${e.title}</div><div class=\"text-secondary\">${new Date(e.start_at).toLocaleString()} — ${e.location||''}</div></div><button class=\"btn btn-sm btn-outline-danger\">Supprimer</button>`;
+      li.querySelector('button').addEventListener('click', async ()=>{
+        await Auth.fetch(`/admin/events/${e.id}`, { method: 'DELETE' });
+        loadEvents();
+      });
+      ul.appendChild(li);
+    });
+  }
+
+  document.getElementById('btnCreateEvent').addEventListener('click', async () => {
+    const title = document.getElementById('evTitle').value.trim();
+    const start = document.getElementById('evStart').value;
+    const location = document.getElementById('evLocation').value.trim();
+    const description = document.getElementById('evDesc').value.trim();
+    if (!title || !start) return alert('Titre et date requis');
+    await Auth.fetch('/admin/events', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, start_at: new Date(start).toISOString(), location, description }) });
+    document.getElementById('evTitle').value = '';
+    document.getElementById('evStart').value = '';
+    document.getElementById('evLocation').value = '';
+    document.getElementById('evDesc').value = '';
+    loadEvents();
+  });
+
+  async function loadUsers(){
+    const tbody = document.querySelector('#usersTable tbody');
+    tbody.innerHTML = '';
+    const res = await Auth.fetch('/admin/users');
+    const users = await Auth.json(res);
+    (users||[]).forEach(u => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${u.id}</td><td>${u.name}</td><td>${u.phone}</td><td><select class=\"form-select form-select-sm roleSel\"><option ${u.role==='passenger'?'selected':''}>passenger</option><option ${u.role==='driver'?'selected':''}>driver</option><option ${u.role==='admin'?'selected':''}>admin</option></select></td><td><input type=\"number\" class=\"form-control form-control-sm capInp\" value=\"${u.capacity||0}\" style=\"width:90px\"></td><td><input type=\"checkbox\" class=\"form-check-input availChk\" ${u.is_available?'checked':''}></td><td><button class=\"btn btn-sm btn-outline-primary saveBtn\">Enregistrer</button></td>`;
+      const sel = tr.querySelector('.roleSel');
+      const cap = tr.querySelector('.capInp');
+      const chk = tr.querySelector('.availChk');
+      tr.querySelector('.saveBtn').addEventListener('click', async ()=>{
+        await Auth.fetch('/admin/set-role', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user_id: u.id, role: sel.value }) });
+        await Auth.fetch('/admin/update-user', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user_id: u.id, capacity: Number(cap.value||0), is_available: chk.checked }) });
+        loadUsers();
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  ensureAdmin();
+</script>
+{% endblock %}
+

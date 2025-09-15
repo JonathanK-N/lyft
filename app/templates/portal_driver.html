@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Chauffeur – Church Lyft{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="row g-4">
+    <div class="col-lg-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h2 class="h5 mb-0">Statut</h2>
+            <span class="badge text-bg-success" id="driver-status-badge">Disponible</span>
+          </div>
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="statusSwitch" checked>
+            <label class="form-check-label" for="statusSwitch">Accepter des demandes</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mt-4">
+        <div class="card-body">
+          <h2 class="h5">Demandes en attente</h2>
+          <ul id="requestsList" class="list-group small">
+            <!-- Peuplé en temps réel via sockets -->
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="ratio ratio-4x3">
+          <div id="map-driver"></div>
+        </div>
+        <div class="card-body d-flex gap-2 flex-wrap">
+          <button class="btn btn-outline-primary" id="btnMyPosition"><i class="bi bi-crosshair"></i> Ma position</button>
+          <button class="btn btn-primary" id="btnNavigate" disabled><i class="bi bi-arrow-right"></i> Itinéraire pickup</button>
+          <button class="btn btn-success" id="btnPicked" disabled><i class="bi bi-check-circle"></i> Passager récupéré</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const map = AppMap.create('map-driver', { center: [45.4042, -71.8929], zoom: 13 });
+  AppMap.locateAndCenter().then(() => {}).catch(() => {});
+
+  const statusSwitch = document.getElementById('statusSwitch');
+  const statusBadge = document.getElementById('driver-status-badge');
+  statusSwitch.addEventListener('change', () => {
+    const on = statusSwitch.checked;
+    statusBadge.className = 'badge ' + (on ? 'text-bg-success' : 'text-bg-secondary');
+    statusBadge.textContent = on ? 'Disponible' : 'Hors ligne';
+    // Notifie l'API pour la disponibilité
+    Auth.fetch('/driver/availability', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ available: on }) });
+  });
+
+  document.getElementById('btnMyPosition').addEventListener('click', AppMap.locateAndCenter);
+
+  // Récupère périodiquement les passagers assignés
+  async function refreshAssigned(){
+    try {
+      const res = await Auth.fetch('/driver/assigned');
+      const data = await Auth.json(res);
+      const ul = document.getElementById('requestsList');
+      ul.innerHTML = '';
+      (data||[]).forEach(p => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.innerHTML = `<span>${p.name} <span class=\"text-secondary\">${p.distance_km ? '('+p.distance_km.toFixed(1)+' km)' : ''}</span></span><a class=\"btn btn-sm btn-outline-primary\" href=\"https://wa.me/${p.whatsapp}\" target=\"_blank\"><i class=\"bi bi-whatsapp\"></i></a>`;
+        ul.appendChild(li);
+      });
+    } catch (_) {}
+  }
+  setInterval(refreshAssigned, 6000);
+  refreshAssigned();
+</script>
+{% endblock %}

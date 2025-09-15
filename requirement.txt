@@ -1,6 +1,0 @@
-Flask==3.0.3
-Flask-SQLAlchemy==3.1.1
-geopy==2.4.1
-# OR-Tools est optionnel mais recommandé pour l’optimisation des trajets
-ortools>=9.12
-

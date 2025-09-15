@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Church Lyft – ICC Sherbrooke{% endblock %}</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+    <!-- App styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+    {% block styles %}{% endblock %}
+  </head>
+  <body class="bg-body-tertiary">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+      <div class="container">
+        <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+          <span class="fs-4">🚗</span>
+          <span class="fw-semibold">Church Lyft</span>
+          <span class="text-warning ms-2 small d-none d-sm-inline">ICC Sherbrooke</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto align-items-lg-center">
+            <li class="nav-item"><a class="nav-link" href="/passenger"><i class="bi bi-person-walking"></i> Passager</a></li>
+            <li class="nav-item"><a class="nav-link" href="/driver"><i class="bi bi-steering-wheel"></i> Chauffeur</a></li>
+            <li class="nav-item"><a class="nav-link" href="/admin/dashboard"><i class="bi bi-speedometer2"></i> Admin</a></li>
+            <li class="nav-item"><a class="nav-link" href="/">Accueil</a></li>
+            <li class="nav-item"><a class="nav-link d-none" href="#" id="logoutLink"><i class="bi bi-box-arrow-right"></i> Déconnexion</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="py-4">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="border-top py-3 small bg-white">
+      <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="text-secondary">© 2025 Church Lyft • Projet communautaire</div>
+        <div class="text-secondary">Fait avec <span class="text-danger">❤</span> pour ICC Sherbrooke</div>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+    <script>
+      // Toggle logout in navbar if JWT exists
+      (function(){
+        try {
+          const has = !!Auth.getToken();
+          const link = document.getElementById('logoutLink');
+          if (link) {
+            if (has) link.classList.remove('d-none');
+            link.addEventListener('click', (e) => { e.preventDefault(); Auth.clear(); window.location.href = '/'; });
+          }
+        } catch(_) {}
+      })();
+    </script>
+    {% block scripts %}{% endblock %}
+  </body>
+  
+</html>
