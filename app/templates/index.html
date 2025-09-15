@@ -183,7 +183,8 @@
     });
 
     // Home map centered on Sherbrooke
-    const map = AppMap.create('map-home', { center: [45.4042, -71.8929], zoom: 15 });
-    AppMap.addMarker([45.4042, -71.8929], { label: "ICC Sherbrooke" });
+    AppMap.setFallbackCenter({{ church_lat|tojson }}, {{ church_lon|tojson }});
+    const map = AppMap.create('map-home', { center: [{{ church_lat }}, {{ church_lon }}], zoom: 15 });
+    AppMap.addMarker([{{ church_lat }}, {{ church_lon }}], { label: "ICC Sherbrooke" });
   </script>
 {% endblock %}

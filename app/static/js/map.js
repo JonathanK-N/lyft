@@ -1,15 +1,21 @@
-// Minimal Leaflet wrapper used across pages
+// Minimal Leaflet wrapper used across pages (with robust geolocation)
 window.AppMap = (function () {
   let map;
   const state = {
     markers: new Map(),
     routeLayer: null,
+    fallbackCenter: [45.3715014, -71.8590381], // ICC Sherbrooke – 219 Rue Queen
   };
 
-  function create(elId, { center = [45.4042, -71.8929], zoom = 13 } = {}) {
+  function setFallbackCenter(lat, lon){
+    state.fallbackCenter = [lat, lon];
+  }
+
+  function create(elId, { center, zoom = 13 } = {}) {
     const el = document.getElementById(elId);
     if (!el) throw new Error(`Map element not found: ${elId}`);
-    map = L.map(elId).setView(center, zoom);
+    const initial = center && Array.isArray(center) ? center : state.fallbackCenter;
+    map = L.map(elId).setView(initial, zoom);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors',
@@ -20,19 +26,37 @@ window.AppMap = (function () {
   async function locate() {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) return reject(new Error('Geolocation indisponible'));
+      const optsHi = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+      const optsLo = { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 };
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve([pos.coords.latitude, pos.coords.longitude]),
-        (err) => reject(err),
-        { enableHighAccuracy: true, timeout: 8000 }
+        (err) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve([pos.coords.latitude, pos.coords.longitude]),
+            () => reject(err),
+            optsLo
+          );
+        },
+        optsHi
       );
     });
   }
 
   async function locateAndCenter() {
-    const ll = await locate();
-    if (map) map.setView(ll, Math.max(map.getZoom(), 14));
-    addOrMoveMarker('me', ll, { label: 'Moi' });
-    return ll;
+    try {
+      const ll = await locate();
+      try {
+        const c = map ? map.getCenter() : state.fallbackCenter;
+        const d = distanceKm(c, ll);
+        if (d > 5000) throw new Error('Outlier location');
+      } catch(_) {}
+      if (map) map.setView(ll, Math.max(map.getZoom(), 14));
+      addOrMoveMarker('me', ll, { label: 'Moi' });
+      return ll;
+    } catch (e) {
+      if (map) map.setView(state.fallbackCenter, Math.max(map.getZoom(), 14));
+      return state.fallbackCenter;
+    }
   }
 
   function addMarker(latlng, { label } = {}) {
@@ -76,6 +100,14 @@ window.AppMap = (function () {
     }
   }
 
-  return { create, locate, locateAndCenter, addMarker, addOrMoveMarker, clearRoute, route };
+  function distanceKm(a, b){
+    const toRad = (x)=>x*Math.PI/180;
+    const [lat1, lon1] = a, [lat2, lon2] = b;
+    const R=6371, dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+    const s = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(s));
+  }
+
+  return { create, locate, locateAndCenter, addMarker, addOrMoveMarker, clearRoute, route, setFallbackCenter };
 })();
 
