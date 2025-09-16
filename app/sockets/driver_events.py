@@ -1,11 +1,21 @@
 from ..extensions import socketio, db
 from ..models.user import User
 from ..models.location import LocationPing
+from flask_socketio import join_room
+
 
 @socketio.on("join")
 def on_join(data):
     # data: {user_id, role}
-    pass  # room management côté front si besoin
+    try:
+        uid = int(data.get("user_id"))
+        role = data.get("role")
+        join_room(f"user:{uid}")
+        if role == "driver":
+            join_room("drivers")
+    except Exception:
+        pass
+
 
 @socketio.on("driver_available")
 def on_driver_available(data):
@@ -15,7 +25,8 @@ def on_driver_available(data):
     if u and u.role == "driver":
         u.is_available = available
         db.session.commit()
-        socketio.emit("toast", {"msg": f"Driver {u.name} -> {'ON' if available else 'OFF'}"}, to=None)
+        socketio.emit("toast", {"msg": f"Driver {u.name} -> {'ON' if available else 'OFF'}"})
+
 
 @socketio.on("location_update")
 def on_location_update(data):
@@ -23,9 +34,11 @@ def on_location_update(data):
     lat = float(data.get("lat"))
     lon = float(data.get("lon"))
     u = User.query.get(uid)
-    if not u: return
+    if not u:
+        return
     u.lat, u.lon = lat, lon
     db.session.add(LocationPing(user_id=uid, lat=lat, lon=lon))
     db.session.commit()
     if u.role == "driver":
         socketio.emit("driver_move", {"driver_id": u.id, "lat": lat, "lon": lon})
+

@@ -53,9 +53,26 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
     <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+    <script>
+      // Minimal socket bootstrap
+      window.AppSocket = { socket: null, me: null };
+      (async function(){
+        try {
+          const r = await Auth.fetch('/auth/me');
+          if (!r.ok) return; const me = await r.json();
+          AppSocket.me = me;
+          const s = io(); AppSocket.socket = s;
+          s.emit('join', { user_id: me.id, role: me.role });
+          s.on('request:new', () => document.dispatchEvent(new CustomEvent('request:new')));
+          s.on('request:accepted', (d) => document.dispatchEvent(new CustomEvent('request:accepted', { detail: d })));
+          s.on('driver_move', (d) => document.dispatchEvent(new CustomEvent('driver:move', { detail: d })));
+        } catch(_){}
+      })();
+    </script>
     <script>
       // Toggle logout in navbar if JWT exists
       (function(){

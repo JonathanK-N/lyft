@@ -19,7 +19,13 @@
 
       <div class="card shadow-sm mt-4">
         <div class="card-body">
-          <h2 class="h5">Demandes en attente</h2>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h2 class="h5 mb-0">Demandes en attente</h2>
+            <div class="input-group input-group-sm" style="width: 180px;">
+              <span class="input-group-text">Rayon (km)</span>
+              <input id="radiusKm" type="number" min="0" step="1" class="form-control" value="5" />
+            </div>
+          </div>
           <ul id="requestsList" class="list-group small">
             <!-- Peuplé en temps réel via sockets -->
           </ul>
@@ -59,7 +65,10 @@
     Auth.fetch('/driver/availability', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ available: on }) });
   });
 
-  document.getElementById('btnMyPosition').addEventListener('click', AppMap.locateAndCenter);
+  document.getElementById('btnMyPosition').addEventListener('click', async ()=>{
+    const ll = await AppMap.locateAndCenter();
+    if (ll) { await Auth.fetch('/driver/location', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ lat: ll[0], lon: ll[1] }) }); }
+  });
   document.getElementById('btnChurch').addEventListener('click', ()=> map.setView([{{ church_lat }}, {{ church_lon }}], 15));
 
   // Récupère périodiquement les passagers assignés
@@ -68,7 +77,9 @@
       const res = await Auth.fetch('/driver/assigned');
       const data = await Auth.json(res);
       const ul = document.getElementById('requestsList');
-      ul.innerHTML = '';
+      // ajoute un séparateur
+      const header = document.createElement('li'); header.className='list-group-item active'; header.textContent='Mes passagers assignés';
+      ul.appendChild(header);
       (data||[]).forEach(p => {
         const li = document.createElement('li');
         li.className = 'list-group-item d-flex justify-content-between align-items-center';
@@ -77,7 +88,39 @@
       });
     } catch (_) {}
   }
-  setInterval(refreshAssigned, 6000);
+  setInterval(refreshAssigned, 12000);
   refreshAssigned();
+
+  async function refreshNearby(){
+    try {
+      const r = Number(document.getElementById('radiusKm').value||0);
+      const res = await Auth.fetch(`/driver/requests${r?`?radius_km=${r}`:''}`);
+      const data = await Auth.json(res);
+      const ul = document.getElementById('requestsList');
+      const sep = document.createElement('li'); sep.className='list-group-item active mt-2'; sep.textContent='Proches de moi';
+      ul.appendChild(sep);
+      (data||[]).forEach(it => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        const d1 = it.distance_to_passenger_km!=null ? it.distance_to_passenger_km.toFixed(1)+' km' : '?';
+        const d2 = it.distance_to_church_km!=null ? it.distance_to_church_km.toFixed(1)+' km' : '?';
+        li.innerHTML = `<div><div class=\"fw-semibold\">${it.passenger.name}</div><div class=\"text-secondary\">${d1} jusqu'au passager • ${d2} jusqu'à l\'église</div></div><div class=\"d-flex gap-1\"><button class=\"btn btn-sm btn-primary accBtn\">Accepter</button><a class=\"btn btn-sm btn-outline-primary\" href=\"https://wa.me/${it.passenger.whatsapp}\" target=\"_blank\"><i class=\"bi bi-whatsapp\"></i></a></div>`;
+        li.querySelector('.accBtn').addEventListener('click', async ()=>{
+          const rs = await Auth.fetch('/driver/accept', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ request_id: it.request_id })});
+          const jd = await Auth.json(rs);
+          if (rs.ok) { ul.innerHTML=''; refreshAssigned(); refreshNearby(); }
+        });
+        ul.appendChild(li);
+      });
+    } catch(_){}
+  }
+  setInterval(()=>{ document.getElementById('requestsList').innerHTML=''; refreshAssigned(); refreshNearby(); }, 8000);
+  refreshNearby();
+
+  // Live refresh on new requests via sockets
+  document.addEventListener('request:new', () => {
+    document.getElementById('requestsList').innerHTML='';
+    refreshAssigned(); refreshNearby();
+  });
 </script>
 {% endblock %}

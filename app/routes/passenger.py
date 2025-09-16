@@ -1,6 +1,6 @@
-from flask import Blueprint, jsonify, render_template
+from flask import Blueprint, jsonify, render_template, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ..extensions import db
+from ..extensions import db, socketio
 from ..models.user import User
 from ..models.ride import Ride, RidePassenger, RideRequest
 from ..utils.geolocation import distance_km
@@ -31,22 +31,38 @@ def request_ride():
     p = User.query.get_or_404(uid)
     if p.role != "passenger":
         return jsonify({"error":"not a passenger"}), 403
+    data = request.get_json() or {}
+    plat = data.get("pickup_lat")
+    plon = data.get("pickup_lon")
 
-    rr = RideRequest(passenger_id=p.id, status="pending")
+    # Met à jour la position du passager si fournie
+    if plat is not None and plon is not None:
+        try:
+            p.lat = float(plat); p.lon = float(plon)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    rr = RideRequest(passenger_id=p.id, status="pending", pickup_lat=p.lat, pickup_lon=p.lon)
     db.session.add(rr); db.session.commit()
+    # Diffusion en temps réel aux chauffeurs
+    payload = {"request_id": rr.id, "passenger_id": p.id, "name": p.name, "pickup": {"lat": rr.pickup_lat, "lon": rr.pickup_lon}}
+    socketio.emit("request:new", payload)
 
-    d, dkm = nearest_available_driver(p)
-    if not d:
-        return jsonify({"error":"no available driver"}), 200
+    return jsonify({"ok": True, "request_id": rr.id, "message": "Demande créée. En attente d'un chauffeur."})
 
-    d.capacity = max(0, (d.capacity or 0) - 1)
-    ride = Ride(driver_id=d.id, status="assigned")
-    db.session.add(ride); db.session.flush()
-    db.session.add(RidePassenger(ride_id=ride.id, passenger_id=p.id))
-    rr.status = "assigned"
-    db.session.commit()
 
-    return jsonify({
-        "driver": {"id": d.id, "name": d.name, "phone": d.phone, "whatsapp": d.whatsapp or d.phone, "address": d.address, "lat": d.lat, "lon": d.lon},
-        "distance_km": dkm
-    })
+@bp.post("/location")
+@jwt_required()
+def update_location():
+    uid = int(get_jwt_identity())
+    u = User.query.get_or_404(uid)
+    data = request.get_json() or {}
+    try:
+        u.lat = float(data.get("lat"))
+        u.lon = float(data.get("lon"))
+        db.session.commit()
+        return jsonify({"ok": True})
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error":"invalid lat/lon"}), 400

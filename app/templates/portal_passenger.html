@@ -13,6 +13,10 @@
               <input id="pickup" class="form-control" placeholder="Ma position ou adresse" />
               <button class="btn btn-outline-secondary" id="btnPickupHere"><i class="bi bi-geo"></i></button>
             </div>
+            <div class="position-relative mt-2">
+              <input id="addrSearch" class="form-control" placeholder="Rechercher une adresse (ex: 219 Rue Queen)" />
+              <div id="addrResults" class="list-group position-absolute w-100" style="z-index:1050;"></div>
+            </div>
           </div>
           <div class="mb-3">
             <label class="form-label">Destination</label>
@@ -53,6 +57,7 @@
     if (pos) {
       AppMap.addOrMoveMarker('pickup', pos, { label: 'Départ' });
       document.getElementById('pickup').value = `${pos[0].toFixed(5)}, ${pos[1].toFixed(5)}`;
+      try { await Auth.fetch('/passenger/location', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ lat: pos[0], lon: pos[1] }) }); } catch(_){}
     }
   });
 
@@ -60,13 +65,48 @@
   document.getElementById('btnClear').addEventListener('click', () => AppMap.clearRoute());
   document.getElementById('btnChurch').addEventListener('click', ()=> map.setView([{{ church_lat }}, {{ church_lon }}], 15));
 
+  // Address search via Nominatim
+  const addr = document.getElementById('addrSearch');
+  const results = document.getElementById('addrResults');
+  let searchTimer=null;
+  addr.addEventListener('input', ()=>{
+    const q = addr.value.trim(); results.innerHTML='';
+    if (searchTimer) clearTimeout(searchTimer);
+    if (q.length < 3) return;
+    searchTimer = setTimeout(async ()=>{
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&addressdetails=1&limit=5`;
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
+        const data = await res.json(); results.innerHTML='';
+        (data||[]).forEach(it=>{
+          const a = document.createElement('a');
+          a.href='#'; a.className='list-group-item list-group-item-action';
+          a.textContent = it.display_name;
+          a.addEventListener('click', async (e)=>{
+            e.preventDefault(); results.innerHTML=''; addr.value = it.display_name;
+            const lat = parseFloat(it.lat), lon=parseFloat(it.lon);
+            AppMap.addOrMoveMarker('pickup', [lat, lon], { label: 'Départ' });
+            map.setView([lat,lon], 15);
+            document.getElementById('pickup').value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+            try { await Auth.fetch('/passenger/location', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ lat, lon }) }); } catch(_){}
+          });
+          results.appendChild(a);
+        });
+      } catch(_){ results.innerHTML=''; }
+    }, 400);
+  });
+
   document.getElementById('btnRequest').addEventListener('click', () => {
     (async () => {
       try {
-        const res = await Auth.fetch('/passenger/request', { method: 'POST' });
+        // utilise la position courante si possible
+        let platlng = null;
+        try { platlng = await AppMap.locate(); } catch(_) {}
+        const body = platlng ? { pickup_lat: platlng[0], pickup_lon: platlng[1] } : {};
+        const res = await Auth.fetch('/passenger/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const data = await Auth.json(res);
         const ok = res.ok;
-        const msg = ok ? (data.driver ? `Chauffeur proposé: ${data.driver.name} (${(data.distance_km||0).toFixed(1)} km)` : 'Demande envoyée, en attente…') : (data.error || 'Erreur');
+        const msg = ok ? 'Demande envoyée, en attente d\'un chauffeur proche…' : (data.error || 'Erreur');
         const el = document.createElement('div');
         el.className = `toast align-items-center text-bg-${ok?'success':'danger'} border-0 show position-fixed bottom-0 end-0 m-3`;
         el.innerHTML = `<div class=\"d-flex\"><div class=\"toast-body\">${msg}</div><button type=\"button\" class=\"btn-close btn-close-white me-2 m-auto\" data-bs-dismiss=\"toast\"></button></div>`;
@@ -80,6 +120,16 @@
         setTimeout(()=>el.remove(), 5000);
       }
     })();
+  });
+
+  // Notify passenger when a driver accepts
+  document.addEventListener('request:accepted', (ev) => {
+    const d = ev.detail || {}; const me = (window.AppSocket||{}).me;
+    if (!me || d.passenger_id !== me.id) return;
+    const el = document.createElement('div');
+    el.className = 'toast align-items-center text-bg-success border-0 show position-fixed bottom-0 end-0 m-3';
+    el.innerHTML = `<div class="d-flex"><div class="toast-body">${d.driver?.name||'Un chauffeur'} a accepté votre demande.</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+    document.body.appendChild(el); setTimeout(()=>el.remove(), 6000);
   });
 </script>
 {% endblock %}
